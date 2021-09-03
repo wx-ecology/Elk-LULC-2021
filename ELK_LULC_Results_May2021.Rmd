@@ -1,0 +1,551 @@
+---
+title: "Elk_LULC_Results_May2021"
+author: "Wenjing"
+date: "5/28/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Intro
+```{r intro, echo = FALSE, message = FALSE}
+library(sf)
+library(tidyverse)
+library(hrbrthemes)
+library(wesanderson)
+
+setwd("/Users/Mushy 1/Google Drive (wenjing.xu@berkeley.edu)/RESEARCH/Elk/GYE_ELK_LandUse")
+data <- read_csv("./result/results_0716.csv") %>% mutate( Range = factor(Range, levels = c("winter", "migration", "summer")))
+sp <- read_sf("./data_clean/seasonalRanges/herdSeasonsUpdatedProj.shp") %>% rename(Herd = herd, Range = season)
+```
+
+We derived summer range, winter range, and migration corridor for `r length(unique(data$Herd))` herds.
+
+We have analyzed below layers:
+```{r intro2, echo = FALSE, message = FALSE}
+unique(data$Layer)
+```
+
+## graphs
+### Home range area 
+area of home range, order by total area
+```{r area1, echo=FALSE, message = FALSE}
+sp <- sp %>% mutate (area = st_area(sp))
+sp1 <- sp %>% group_by (Herd) %>% summarise(area = sum(area)) %>% arrange(area) %>% mutate(Herd=factor(Herd, levels=Herd))
+sp2 <- sp %>% mutate (Herd = factor(Herd, levels = levels(sp1$Herd)))
+st_geometry(sp2) <- NULL
+
+sp2 %>% mutate (Range = factor(Range, levels = c("winter", "migration", "summer"))) %>%
+  ggplot(aes(x=Herd, y= as.numeric(area)/1000000, fill = Range)) +
+  geom_bar(stat = "identity") +  
+  scale_fill_manual(values=wes_palette("Moonrise3", 3, "continuous")) +
+  theme_ipsum(base_size = 12, axis_text_size = 10) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "HR area (km2)") +
+  theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_blank(), legend.text = element_text(size = 8))
+```
+
+
+### Land ownership
+Percentage of land ownership, order by %private land in winter.  
+```{r land_ownership, echo=FALSE}
+data1 <- data %>% filter(Layer == "Land_ownership") %>% mutate (Category = factor(Category, levels = c("OTHER_FED","ST", "BLM", "NPS", "USFS", "PVT"))) 
+# update herd order 
+data11 <- data1 %>% filter(Range == "winter", Category == "PVT") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data1 <- data1 %>% mutate (Herd = factor(Herd, levels = levels(data11$Herd)))
+
+tiff('/Users/Mushy 1/Google Drive (wenjing.xu@berkeley.edu)/RESEARCH/Elk/GYE_ELK_LandUse/result/GYE_graph_cmpts/ownership_grey.tiff', units="in", width=11, height=6, res=300, compression = 'lzw')
+data1 %>%
+  ggplot(aes(x=Herd, y=Value, fill = Category)) +
+  geom_bar(position = "stack", stat = "identity") +  
+  #scale_fill_manual(values=wes_palette("GrandBudapest2", 6, "continuous")) +
+  scale_fill_grey(start = 0.3, end = 0.7) +
+  theme_ipsum(base_size = 12, axis_text_size = 7) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "Percentage") + 
+  theme(axis.title.x = element_blank()) +
+  theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_blank(), legend.text = element_text(size = 8)) +
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+dev.off()
+```
+
+### Protected status
+Percentage of protected status (protected v.s. not protected), order by % un-protected in winter. 
+```{r Protected_status1, echo=FALSE}
+data21 <- data %>% filter(Layer == "Protected_status") %>% 
+  mutate(Category = ifelse( Category == "NOT_PROTECTED", Category, "PROTECTED")) %>%
+  mutate(Category = factor(Category, levels = c("PROTECTED", "NOT_PROTECTED")))
+data211 <- data21 %>% filter(Range == "winter", Category == "NOT_PROTECTED") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data21 <- data21 %>% mutate (Herd = factor(Herd, levels = levels(data211$Herd)))
+
+data21 %>%
+  ggplot(aes(x=Herd, y=Value, fill = Category)) +
+  geom_bar(position = "stack", stat = "identity") +  
+  scale_fill_manual(values=wes_palette("Chevalier1")) +
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "Percentage") + 
+  theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_blank(), legend.text = element_text(size = 8)) +
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+
+Percentage of protected status by public conservation area v.s. easement v.s. unprotected, order by % un-protected in winter. 
+```{r Protected_status2, echo=FALSE}
+data22 <- data %>% filter(Layer == "Protected_status") %>% 
+  mutate(Category = ifelse( (Category %in% c("e1", "e2", "e3", "e4")), "EASEMENT", 
+                            ifelse(Category == "NOT_PROTECTED", Category, "PA"))) %>%
+  mutate(Category = factor(Category, levels = c("PA", "EASEMENT", "NOT_PROTECTED")))
+data221 <- data22 %>% filter(Range == "winter", Category == "NOT_PROTECTED") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data22 <- data22 %>% mutate (Herd = factor(Herd, levels = levels(data221$Herd)))
+
+tiff('/Users/Mushy 1/Google Drive (wenjing.xu@berkeley.edu)/RESEARCH/Elk/GYE_ELK_LandUse/result/GYE_graph_cmpts/protection_grey.tiff', units="in", width=11, height=6, res=300, compression = 'lzw')
+data22 %>%
+  ggplot(aes(x=Herd, y=Value, fill = Category)) +
+  geom_bar(position = "stack", stat = "identity") +  
+  #scale_fill_manual(values=wes_palette("Chevalier1")) +
+  scale_fill_grey(start = 0.4, end = 0.75) +
+  theme_ipsum(base_size = 12, axis_text_size = 7) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "Percentage") + 
+  theme(axis.title.x = element_blank()) +
+  theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_blank(), legend.text = element_text(size = 8)) +
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+dev.off()
+```
+
+Percentage of protected status by protected level regardless of easement or public, order by % un-protected in winter. 1 - 4 represent protect level from high to low.
+
+```{r Protected_status3, echo=FALSE}
+data23 <- data %>% filter(Layer == "Protected_status") %>% 
+  mutate(Category = ifelse( Category == "e1", "1", 
+                            ifelse(Category == "e2", "2", 
+                                   ifelse(Category == "e3", "3", 
+                                          ifelse(Category == "e4", "4", Category))))) %>%
+  mutate(Category = factor(Category, levels = c("1", "2", "3", "4", "NOT_PROTECTED")))
+data231 <- data23 %>% filter(Range == "winter", Category == "NOT_PROTECTED") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data23 <- data23 %>% mutate (Herd = factor(Herd, levels = levels(data231$Herd)))
+
+tiff('/Users/Mushy 1/Google Drive (wenjing.xu@berkeley.edu)/RESEARCH/Elk/GYE_ELK_LandUse/result/GYE_graph_cmpts/supp-protection_level_grey.tiff', units="in", width=11, height=6, res=300, compression = 'lzw')
+data23 %>%
+  ggplot(aes(x=Herd, y=Value, fill = Category)) +
+  geom_bar(position = "stack", stat = "identity") +  
+  # scale_fill_manual(values=wes_palette("Chevalier1", 5, "continuous")) +
+  scale_fill_grey(start = 0.4, end = 0.75) +
+  theme_ipsum(base_size = 12, axis_text_size = 7) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "Percentage") + 
+  theme(axis.title.x = element_blank()) +
+  theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_blank(), legend.text = element_text(size = 8)) +
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+dev.off()
+```
+
+### number of private owners
+```{r OWNERS, echo=FALSE}
+data8 <- data %>% filter(Layer == "Private_owners") 
+data81 <- data8 %>% filter(Range == "winter") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data8 <- data8 %>% mutate (Herd = factor(Herd, levels = levels(data81$Herd)))
+
+data8 %>%
+  ggplot(aes(x=Herd, y=Value)) +
+  geom_bar(position = "stack", stat = "identity", fill = "#DE7994") +  
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "# of owners") + 
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+
+### Agriculture 
+```{r Ag, echo=FALSE}
+data3 <- data %>% filter(Layer == "Proportion_ag") 
+data31 <- data3 %>% filter(Range == "winter") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data3 <- data3 %>% mutate (Herd = factor(Herd, levels = levels(data31$Herd)))
+
+data3 %>%
+  ggplot(aes(x=Herd, y=Value)) +
+  geom_bar(position = "stack", stat = "identity", fill = "#EC9F05") +  
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "Percentage") + 
+  #theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_blank(), legend.text = element_text(size = 8)) +
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+
+### Engergy 
+max energy density (what is the unit? what energy type?)
+
+```{r Engergy1, echo=FALSE}
+data4 <- data %>% filter(Layer == "energy", Category == "max") 
+data41 <- data4 %>% filter(Range == "winter", Category == "max") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data4 <- data4 %>% mutate (Herd = factor(Herd, levels = levels(data41$Herd)))
+
+data4 %>%
+  ggplot(aes(x=Herd, y=Value)) +
+  geom_bar(position = "stack", stat = "identity", fill = "#626c66") +  
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "Max energy density (what is the unit?)") + 
+  #theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_blank(), legend.text = element_text(size = 8)) +
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+mean energy density (what is the unit? what energy type?)
+
+```{r Engergy2, echo=FALSE}
+data4 <- data %>% filter(Layer == "energy", Category == "mean") 
+data41 <- data4 %>% filter(Range == "winter", Category == "mean") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data4 <- data4 %>% mutate (Herd = factor(Herd, levels = levels(data41$Herd)))
+
+data4 %>%
+  ggplot(aes(x=Herd, y=Value)) +
+  geom_bar(position = "stack", stat = "identity", fill = "#626c66") +  
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "Mean energy density (what is the unit?)") + 
+  #theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_blank(), legend.text = element_text(size = 8)) +
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+
+
+
+### Current building density
+```{r Building density1, echo=FALSE}
+data5 <- data %>% filter(Layer == "currentBuildings", Category == "max") 
+data51 <- data5 %>% filter(Range == "winter", Category == "max") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data5 <- data5 %>% mutate (Herd = factor(Herd, levels = levels(data51$Herd)))
+
+data5 %>%
+  ggplot(aes(x=Herd, y=Value)) +
+  geom_bar(position = "stack", stat = "identity", fill = "#E1CA96") +  
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "max building density (#/km2)") + 
+  #theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_blank(), legend.text = element_text(size = 8)) +
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+```{r Building density2, echo=FALSE}
+data5 <- data %>% filter(Layer == "currentBuildings", Category == "mean") 
+data51 <- data5 %>% filter(Range == "winter", Category == "mean") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data5 <- data5 %>% mutate (Herd = factor(Herd, levels = levels(data51$Herd)))
+
+data5 %>%
+  ggplot(aes(x=Herd, y=Value)) +
+  geom_bar(position = "stack", stat = "identity", fill = "#E1CA96") +  
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "mean building density (#/km2)") + 
+  #theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_blank(), legend.text = element_text(size = 8)) +
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+
+```{r Road1, echo=FALSE}
+data6 <- data %>% filter(Layer == "allRoads", Category == "max") 
+data61 <- data6 %>% filter(Range == "winter", Category == "max") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data6 <- data6 %>% mutate (Herd = factor(Herd, levels = levels(data61$Herd)))
+
+data6 %>%
+  ggplot(aes(x=Herd, y=Value)) +
+  geom_bar(position = "stack", stat = "identity", fill = "#7F636E") +  
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "max road density (km/km2)") + 
+  #theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_blank(), legend.text = element_text(size = 8)) +
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+
+```{r Road2, echo=FALSE}
+data6 <- data %>% filter(Layer == "allRoads", Category == "mean") 
+data61 <- data6 %>% filter(Range == "winter", Category == "mean") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data6 <- data6 %>% mutate (Herd = factor(Herd, levels = levels(data61$Herd)))
+
+data6 %>%
+  ggplot(aes(x=Herd, y=Value)) +
+  geom_bar(position = "stack", stat = "identity", fill = "#7F636E") +  
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "mean road density (km/km2)") + 
+  #theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_blank(), legend.text = element_text(size = 8)) +
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+
+Interstate only road density - 
+
+```{r Road3, echo=FALSE}
+data6 <- data %>% filter(Layer == "interstateOnly", Category == "max") 
+data61 <- data6 %>% filter(Range == "winter", Category == "max") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data6 <- data6 %>% mutate (Herd = factor(Herd, levels = levels(data61$Herd)))
+
+data6 %>%
+  ggplot(aes(x=Herd, y=Value)) +
+  geom_bar(position = "stack", stat = "identity", fill = "#55868C") +  
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "max interstate density (km/km2)") + 
+  #theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_blank(), legend.text = element_text(size = 8)) +
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+
+
+```{r Road4, echo=FALSE}
+data6 <- data %>% filter(Layer == "interstateOnly", Category == "mean") 
+data61 <- data6 %>% filter(Range == "winter", Category == "mean") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data6 <- data6 %>% mutate (Herd = factor(Herd, levels = levels(data61$Herd)))
+
+data6 %>%
+  ggplot(aes(x=Herd, y=Value)) +
+  geom_bar(position = "stack", stat = "identity", fill = "#55868c") +  
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "mean interstate density (km/km2)") + 
+  #theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_blank(), legend.text = element_text(size = 8)) +
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+
+### Fence density 
+
+```{r fence1, echo=FALSE}
+data7 <- data %>% filter(Layer == "fence", Category == "max") 
+data71 <- data7 %>% filter(Range == "winter", Category == "max") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data7 <- data7 %>% mutate (Herd = factor(Herd, levels = levels(data71$Herd)))
+
+data7 %>%
+  ggplot(aes(x=Herd, y=Value)) +
+  geom_bar(position = "stack", stat = "identity", fill = "#a588b3") +  
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "max fence density (km/km2)") + 
+  #theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_blank(), legend.text = element_text(size = 8)) +
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+
+
+```{r fence2, echo=FALSE}
+data7 <- data %>% filter(Layer == "fence", Category == "mean") 
+data71 <- data7 %>% filter(Range == "winter", Category == "mean") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data7 <- data7 %>% mutate (Herd = factor(Herd, levels = levels(data71$Herd)))
+
+data7 %>%
+  ggplot(aes(x=Herd, y=Value)) +
+  geom_bar(position = "stack", stat = "identity", fill = "#a588b3") +  
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "mean fence density (km/km2)") + 
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+
+### livestock 
+```{r livestock mean, echo=FALSE}
+data9 <- data %>% filter(Layer == "allLivestock", Category == "mean") 
+data91 <- data9 %>% filter(Range == "winter") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data9 <- data9 %>% mutate (Herd = factor(Herd, levels = levels(data91$Herd)))
+
+data9 %>%
+  ggplot(aes(x=Herd, y=Value)) +
+  geom_bar(position = "stack", stat = "identity", fill = "#83B5D1") +  
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "mean livestock denstiy(count/km2)") + 
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+
+```{r livestock max, echo=FALSE}
+data9 <- data %>% filter(Layer == "allLivestock", Category == "max") 
+data92 <- data9 %>% filter(Range == "winter") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data9 <- data9 %>% mutate (Herd = factor(Herd, levels = levels(data92$Herd)))
+
+data9 %>%
+  ggplot(aes(x=Herd, y=Value)) +
+  geom_bar(position = "stack", stat = "identity", fill = "#83B5D1") +  
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "max livestock density (km/km2)") + 
+  #theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_blank(), legend.text = element_text(size = 8)) +
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+
+```{r cattle mean, echo=FALSE}
+data9 <- data %>% filter(Layer == "cattle", Category == "mean") 
+data93 <- data9 %>% filter(Range == "winter") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data9 <- data9 %>% mutate (Herd = factor(Herd, levels = levels(data93$Herd)))
+
+data9 %>%
+  ggplot(aes(x=Herd, y=Value)) +
+  geom_bar(position = "stack", stat = "identity", fill = "#83B5D1") +  
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "mean cattle equivalent denstiy (count/km2)") + 
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+
+```{r cattle max, echo=FALSE}
+data9 <- data %>% filter(Layer == "cattle", Category == "max") 
+data94 <- data9 %>% filter(Range == "winter") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
+data9 <- data9 %>% mutate (Herd = factor(Herd, levels = levels(data94$Herd)))
+
+data9 %>%
+  ggplot(aes(x=Herd, y=Value)) +
+  geom_bar(position = "stack", stat = "identity", fill = "#83B5D1") +  
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs (y = "max cattle equivalent denstiy (count/km2)") + 
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  facet_wrap(vars(Range))
+```
+
+## maps
+### percent protected 
+```{r protected map, echo=FALSE}
+data2 <- data21 %>% filter(Category == "PROTECTED") %>% group_by(Herd, Range) %>% summarise(Value = sum(Value))
+sp2 <- sp %>% left_join(data2)
+
+sp2 %>%
+  ggplot() +
+  geom_sf(aes(fill = Value), size = 0.01) +
+  scale_fill_gradient(name = "percent protected  ", low = "#d1d1d1", high= "#065d46", na.value = NA) +
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.5, 'cm'), legend.title = element_text(size = 10), legend.text = element_text(size = 8)) 
+```
+
+### by # of private owners 
+```{r owner map, echo=FALSE}
+sp8 <- sp %>% left_join(data8)
+
+tiff('/Users/Mushy 1/Google Drive (wenjing.xu@berkeley.edu)/RESEARCH/Elk/GYE_ELK_LandUse/result/GYE_graph_cmpts/map_owner_no_grey.tiff', units="in", width=11, height=6, res=300, compression = 'lzw')
+sp8 %>%
+  ggplot() +
+  geom_sf(aes(fill = Value), size = 0.01) +
+  coord_sf(datum = NA) +
+  scale_fill_gradient(name = "owner#", low = "#e6e6e6", high= "#3d3d3d", na.value = NA) +
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_text(size = 10), legend.text = element_text(size = 8)) 
+dev.off()
+summary(sp8$Value)
+```
+
+## %zoned
+```{r zoning map, echo=FALSE}
+data0 <- data %>% filter(Layer == "zoning", Category == "percentZoned") 
+sp0 <- sp %>% left_join(data0)
+
+tiff('/Users/Mushy 1/Google Drive (wenjing.xu@berkeley.edu)/RESEARCH/Elk/GYE_ELK_LandUse/result/GYE_graph_cmpts/map_zone_0-668.tiff', units="in", width=11, height=6, res=300, compression = 'lzw')
+sp0 %>%
+  ggplot() +
+  geom_sf(aes(fill = Value), size = 0.01) +
+  coord_sf(datum = NA) +
+  scale_fill_gradient(name = "% zoned", low = "#ededed", high= "#3d3d3d", na.value = NA) +
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_text(size = 10), legend.text = element_text(size = 8)) 
+dev.off()
+summary(sp0$Value)
+```
+
+### by percent ag 
+```{r Ag map, echo=FALSE}
+data3 <- data %>% filter(Layer == "Proportion_ag") 
+sp3 <- sp %>% left_join(data3)
+
+sp3 %>%
+  ggplot() +
+  geom_sf(aes(fill = Value), size = 0.01) +
+  scale_fill_gradient(name = "percent ag  ", low = "#E7D9D1", high= "#DE9400", na.value = NA) +
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_text(size = 10), legend.text = element_text(size = 8)) 
+```
+
+### by mean ernergy density
+```{r energy map, echo=FALSE}
+data4 <- data %>% filter(Layer == "energy", Category == "mean") 
+sp4 <- sp %>% left_join(data4)
+
+tiff('/Users/Mushy 1/Google Drive (wenjing.xu@berkeley.edu)/RESEARCH/Elk/GYE_ELK_LandUse/result/GYE_graph_cmpts/energy_0-0626.tiff', units="in", width=11, height=6, res=300, compression = 'lzw')
+sp4 %>%
+  ggplot() +
+  geom_sf(aes(fill = Value), size = 0.01) +
+  coord_sf(datum = NA) +
+  scale_fill_gradient(name = "energy density  ", low = "#ededed", high= "#3d3d3d", na.value = NA) +
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_text(size = 10), legend.text = element_text(size = 8)) 
+dev.off()
+summary(sp4$Value)
+```
+
+### by mean road density 
+```{r road map, echo=FALSE}
+data5 <- data %>% filter(Layer == "allRoads", Category == "mean") 
+sp5 <- sp %>% left_join(data5)
+
+sp5 %>%
+  ggplot() +
+  geom_sf(aes(fill = Value), size = 0.01) +
+  scale_fill_gradient(name = "road density /km2  ", low = "#D9D3D3", high= "#85264c", na.value = NA) +
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_text(size = 10), legend.text = element_text(size = 8)) 
+```
+
+```{r road map2, echo=FALSE}
+data51 <- data %>% filter(Layer == "interstateOnly", Category == "mean") 
+sp51 <- sp %>% left_join(data51)
+
+sp51 %>%
+  ggplot() +
+  geom_sf(aes(fill = Value), size = 0.01) +
+  scale_fill_gradient(name = "interstate density /km2  ", low = "#bfcbcc", high= "#276c75", na.value = NA) +
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.5, 'cm'), legend.title = element_text(size = 10), legend.text = element_text(size = 8)) 
+```
+
+
+### by mean fence density 
+```{r fence map, echo=FALSE}
+data6 <- data %>% filter(Layer == "fence", Category == "mean") 
+sp6 <- sp %>% left_join(data6)
+
+tiff('/Users/Mushy 1/Google Drive (wenjing.xu@berkeley.edu)/RESEARCH/Elk/GYE_ELK_LandUse/result/GYE_graph_cmpts/fence_005-295.tiff', units="in", width=11, height=6, res=300, compression = 'lzw')
+sp6 %>%
+  ggplot() +
+  geom_sf(aes(fill = Value), size = 0.01) +
+  coord_sf(datum = NA) +
+  scale_fill_gradient(name = "fence density /km2 ", low = "#ededed", high= "#3d3d3d", na.value = NA) +
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_text(size = 10), legend.text = element_text(size = 8)) 
+dev.off()
+summary(sp6$Value)
+```
+
+
+### by mean cattle equivalent density 
+```{r cattle map, echo=FALSE}
+data9 <- data %>% filter(Layer == "cattle", Category == "mean") 
+sp9 <- sp %>% left_join(data9)
+summary(sp9$Value)
+
+tiff('/Users/Mushy 1/Google Drive (wenjing.xu@berkeley.edu)/RESEARCH/Elk/GYE_ELK_LandUse/result/GYE_graph_cmpts/cattle_0-601.tiff', units="in", width=11, height=6, res=300, compression = 'lzw')
+sp9 %>%
+  ggplot() +
+  geom_sf(aes(fill = Value), size = 0.01) +
+  coord_sf(datum = NA) +
+  scale_fill_gradient(name = "# cattle", low = "#ededed", high= "#3d3d3d", na.value = NA) +
+  theme_ipsum(base_size = 12, axis_text_size = 5) +
+  theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_text(size = 10), legend.text = element_text(size = 8)) 
+dev.off()
+```
