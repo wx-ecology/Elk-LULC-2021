@@ -56,12 +56,12 @@ data1 <- data %>% filter(Layer == "Land_ownership") %>% mutate (Category = facto
 data11 <- data1 %>% filter(Range == "winter", Category == "PVT") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
 data1 <- data1 %>% mutate (Herd = factor(Herd, levels = levels(data11$Herd)))
 
-tiff('/Users/Mushy 1/Google Drive (wenjing.xu@berkeley.edu)/RESEARCH/Elk/GYE_ELK_LandUse/result/GYE_graph_cmpts/ownership_grey.tiff', units="in", width=11, height=6, res=300, compression = 'lzw')
+tiff('/Users/Mushy 1/Google Drive (wenjing.xu@berkeley.edu)/RESEARCH/Elk/GYE_ELK_LandUse/result/GYE_graph_cmpts/ownership_color.tiff', units="in", width=11, height=6, res=300, compression = 'lzw')
 data1 %>%
   ggplot(aes(x=Herd, y=Value, fill = Category)) +
   geom_bar(position = "stack", stat = "identity") +  
-  #scale_fill_manual(values=wes_palette("GrandBudapest2", 6, "continuous")) +
-  scale_fill_grey(start = 0.3, end = 0.7) +
+  scale_fill_manual(values=wes_palette("GrandBudapest2", 6, "continuous")) +
+  #scale_fill_grey(start = 0.3, end = 0.7) +
   theme_ipsum(base_size = 12, axis_text_size = 7) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
   labs (y = "Percentage") + 
@@ -102,12 +102,12 @@ data22 <- data %>% filter(Layer == "Protected_status") %>%
 data221 <- data22 %>% filter(Range == "winter", Category == "NOT_PROTECTED") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
 data22 <- data22 %>% mutate (Herd = factor(Herd, levels = levels(data221$Herd)))
 
-tiff('/Users/Mushy 1/Google Drive (wenjing.xu@berkeley.edu)/RESEARCH/Elk/GYE_ELK_LandUse/result/GYE_graph_cmpts/protection_grey.tiff', units="in", width=11, height=6, res=300, compression = 'lzw')
+tiff('/Users/Mushy 1/Google Drive (wenjing.xu@berkeley.edu)/RESEARCH/Elk/GYE_ELK_LandUse/result/GYE_graph_cmpts/protection_color.tiff', units="in", width=11, height=6, res=300, compression = 'lzw')
 data22 %>%
   ggplot(aes(x=Herd, y=Value, fill = Category)) +
   geom_bar(position = "stack", stat = "identity") +  
-  #scale_fill_manual(values=wes_palette("Chevalier1")) +
-  scale_fill_grey(start = 0.4, end = 0.75) +
+  scale_fill_manual(values=wes_palette("Chevalier1")) +
+  #scale_fill_grey(start = 0.4, end = 0.75) +
   theme_ipsum(base_size = 12, axis_text_size = 7) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
   labs (y = "Percentage") + 
@@ -130,12 +130,12 @@ data23 <- data %>% filter(Layer == "Protected_status") %>%
 data231 <- data23 %>% filter(Range == "winter", Category == "NOT_PROTECTED") %>% arrange(-Value) %>% mutate(Herd=factor(Herd, levels=Herd))
 data23 <- data23 %>% mutate (Herd = factor(Herd, levels = levels(data231$Herd)))
 
-tiff('/Users/Mushy 1/Google Drive (wenjing.xu@berkeley.edu)/RESEARCH/Elk/GYE_ELK_LandUse/result/GYE_graph_cmpts/supp-protection_level_grey.tiff', units="in", width=11, height=6, res=300, compression = 'lzw')
+tiff('/Users/Mushy 1/Google Drive (wenjing.xu@berkeley.edu)/RESEARCH/Elk/GYE_ELK_LandUse/result/GYE_graph_cmpts/supp-protection_level_color.tiff', units="in", width=11, height=6, res=300, compression = 'lzw')
 data23 %>%
   ggplot(aes(x=Herd, y=Value, fill = Category)) +
   geom_bar(position = "stack", stat = "identity") +  
-  # scale_fill_manual(values=wes_palette("Chevalier1", 5, "continuous")) +
-  scale_fill_grey(start = 0.4, end = 0.75) +
+  scale_fill_manual(values=wes_palette("Chevalier1", 5, "continuous")) +
+  #scale_fill_grey(start = 0.4, end = 0.75) +
   theme_ipsum(base_size = 12, axis_text_size = 7) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
   labs (y = "Percentage") + 
@@ -525,7 +525,7 @@ sp6 %>%
   ggplot() +
   geom_sf(aes(fill = Value), size = 0.01) +
   coord_sf(datum = NA) +
-  scale_fill_gradient(name = "fence density /km2 ", low = "#ededed", high= "#3d3d3d", na.value = NA) +
+  scale_fill_gradient(name = "fence density /km2 ", low = "#ededed", high= "#1c1c1c", na.value = NA) +
   theme_ipsum(base_size = 12, axis_text_size = 5) +
   theme(legend.position="bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, 'cm'), legend.title = element_text(size = 10), legend.text = element_text(size = 8)) 
 dev.off()
